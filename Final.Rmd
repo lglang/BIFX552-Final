@@ -1,0 +1,256 @@
+---
+title: "BIFX 552 Final Exam"
+author: "Lindsay Glang"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(cowplot)
+library(patchwork)
+library(ggplot2)
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+# load insure data
+insure <- read_csv('insurance.csv') %>% drop_na() %>% filter(age != 145, charges !=1.59, age !=145) %>% mutate(smoke_bmi_gt30 = case_when(
+  smoker == "no" ~ 1,
+  smoker == "yes" & bmi < 30 ~ 2,
+  smoker == "yes" & bmi >= 30 ~ 3)) %>%
+    mutate(smoke_bmi_gt30 = factor(smoke_bmi_gt30,
+                                   levels = c(1,2,3)))
+```
+
+# Instructions
+
+Fill in the missing code below, and push two files to GitHub:
+
+* An Rmd file with the full analysis.
+* The knitted Word document containing a summary of the analysis and a description of the findings.
+
+When you push to GitHub, a pull request will be created. This is how I will comment on your code, so don't close the pull request. When you are finished, upload your word document to Blackboard to let me know you are done.
+
+## Rubric
+
+This is the rubric I will use for grading the final:
+
+| Deliverable | Competency                                              | Points     |
+|:------------|:--------------------------------------------------------|:----------:|
+| Code        |                                                         | 50 (total) |
+|             | Neatness                                                |  5         |
+|             | Knits without errors                                    |  5         |
+|             | Code contains appropriate comments/documentation        |  5         |
+|             | Data wrangling for `insure` contained in setup chunk    |  3         |
+|             | Packages loaded once in the setup chunk                 |  1         |
+|             | All files pushed to GitHub                              |  5         |
+|             | Appropriately sized git commits                         |  5         |
+|             | No magic numbers                                        |  1         |
+|             | Proper use of pipes                                     |  5         |
+|             | Pull request is left open                               |  5         |
+|             | All tasks completed correctly                           | 15         |
+| Figures     |                                                         | 30 (total) |
+|             | Variables are properly transformed                      |  5         |
+|             | Proper use of color and point/line types                |  5         |
+|             | Resolution of images is 300 dpi                         |  5         |
+|             | Use `theme_cowplot()`                                   |  5         |
+|             | Labels are neat and human readable                      |  5         |
+|             | Appropriate figure captions are included                |  5         |
+| Word Doc    |                                                         | 20 (total) |
+|             | Formatted as a Word Document                            |  5         |
+|             | Code not shown in Word document                         |  5         |
+|             | yaml header is updated properly                         |  5         |
+|             | Answers italicized and in blockquotes                   |  5         |
+
+Late exams will be subject to a 50% penalty.
+
+
+# Problem
+
+We will use this data set to explore healthcare charges as a function of age, sex, bmi, children, smoking status, and region. Descriptions of the variables in the `insure` data set:
+
+* age - Age of the individual
+* sex - Sex of the individual
+* bmi - Body mass index of the individual
+* surgeries - Number of lifetime surgeries
+* smoker - 'yes' if the individual is a smoker
+* region - Region of the area covered by this study
+* charges - Insurance charges for an individual
+
+
+## Exploratory Graphics
+
+### Transformation of charges
+When modeling data using linear regression we make the assumption that the relationship between the predictors (`age`, `sex`, `bmi`, `surgeries`, `somker`, and `region`) and the outcome (`charges`) is linear. In some cases that requires us to transform our data.
+
+```{r transformation of charges, echo=FALSE, dpi=300, fig.cap="Figure 1: Charges as a function of age with no transformation (left), log10 charges (center) and square root charges (right)."}
+g1 <- ggplot(insure, mapping = aes(age,charges))+
+    geom_point(alpha = .2) +
+    labs(x = "Age", y = "Charges") + 
+    theme_half_open(font_size = 7)
+g2 <- ggplot(insure, mapping = aes(age,charges))+
+    geom_point(alpha = .2) +
+    scale_y_log10() +
+    labs(x = "Age", y = "Charges (log10 scale)") +
+    theme_half_open(font_size = 7)
+g3 <- ggplot(insure, mapping = aes(age,charges))+
+    geom_point(alpha = .2) +
+    scale_y_sqrt() +
+    labs(x = "Age", y = "Charges (Sqrt scale)") +
+    theme_half_open(font_size = 7)
+
+# load the patchwork library, and this will place all graphics side-by-side in a single figure
+g1 + g2 + g3
+```
+
+Based on the figure above, what do you feel is the best transformation (possibly no transformation) for charges that will result in a straight-line relationship between age and charges?
+
+> *The square root transformation of charges results in the most straight-line relationship between age and charges*
+
+
+### Color by different groups
+
+Next, let's take a look at our data with our points colored by different groups (be sure to apply the transformation you picked in the previous section - the sample solution picked square root transformation, but you may want to pick something else).
+
+```{r color by sex, dpi = 300, echo = FALSE, fig.cap = "Figure 2: Charges as a function of age, colored by sex (top left), smoker (top middle), region (top right), bmi (bottom left), and number of children (bottom right)."}
+sex <- ggplot(insure, mapping = aes(age,charges, color = sex))+
+    geom_point() +
+    scale_y_sqrt() +
+    labs(x = "Age", y = "Charges (Sqrt scale)") + 
+    scale_color_manual(values = cbbPalette) +
+     theme_half_open(font_size = 7)
+smoker <- ggplot(insure, mapping = aes(age,charges, color = smoker))+
+    geom_point() +
+    scale_y_sqrt() +
+    labs(x = "Age", y = "Charges (Sqrt scale)") + 
+    scale_color_manual(values = cbbPalette) +
+    theme_half_open(font_size = 7)
+region <- ggplot(insure, mapping = aes(age,charges, color = region))+
+    geom_point() +
+    scale_y_sqrt() +
+    labs(x = "Age", y = "Charges (Sqrt scale)") +
+    scale_color_manual(values = cbbPalette) +
+    theme_half_open(font_size = 7)
+bmi <- ggplot(insure, mapping = aes(age,charges, color = bmi))+
+    geom_point() +
+    scale_y_sqrt() +
+    labs(x = "Age", y = "Charges (Sqrt scale)") + 
+    scale_fill_manual(values = cbbPalette) +
+    theme_half_open(font_size = 7)
+children <- ggplot(insure, mapping = aes(age,charges, color = children))+
+    geom_point() +
+    scale_y_sqrt() +
+    labs(x = "Age", y = "Charges (Sqrt scale)") + 
+    scale_fill_manual(values = cbbPalette) +
+    theme_half_open(font_size = 7)
+    
+# using the patchwork library 
+(sex + smoker + region) / (bmi + children)    
+```
+
+
+What stands out to you in these figures?
+
+> *One of the most obvious trends is that all of the smokers have a higher charges than non-smokers. They all fall into the higher of the three groups. It looks like females on average also have a higher charges. Having a higher BMI tends to mean an increase in charges, while looking at number of children, 3-4 children tend to be spread over the board, but 5+ children tend to have a lower charge rate. *
+
+
+### Look more closely at BMI
+
+There are still some odd patterns here that aren't jumping out. Let's look at the relationship between BMI and charges (remember to apply your chosen transformation to charges).
+
+```{r, Charges by BMI, echo=FALSE, dpi = 300, fig.cap="Figure 3: Charges as a function of bmi with points colored by smoker status and a vertical line at a BMI of 30."}
+bmi <- ggplot(insure, mapping = aes(bmi,charges, color = smoker)) +
+    geom_point() +
+    scale_y_sqrt() +
+    geom_vline(xintercept = 30, linetype = "dotted") +
+    labs(x = "BMI", y = "Charges (Sqrt scale)") + 
+    scale_color_manual(values = cbbPalette) +
+    theme_half_open(font_size = 7)
+bmi
+```
+
+
+What additional conclusions can you make after viewing this figure? Does the transformation you chose look like it makes sense for the relationship between BMI and charges?
+
+> *With the points colord by smoker status, there is again, a trend towards smokers having higher insurance charges. There is an interesting jump at 30 BMI, particularly seen in smokers, where charges almost double. Another interesting thing can be seen at the high end of the BMI scale, at approximately 52 BMI. The smoker has about a 40x higher cost than a non-smoker at a similar BMI. The square root transformation works alright for the data - it helps show the higher values of insurance more easily. The lower values are easier to see in a log10 transformation, however. Neither transformation gives an exactly linear relationship.*
+
+
+### Look more closely at children
+
+Just to be sure we cover all the angles, let's also take a look at the relationship between children and charges.
+
+```{r, Charges by children, echo=FALSE, dpi = 300, fig.cap="Figure 4: Charges as a function of number of children."}
+children <- ggplot(insure, mapping = aes(children,charges))+
+    scale_y_sqrt() +
+    geom_jitter(aes(children, charges)) +
+    labs(x = "Number of children", y = "Charges (Sqrt scale)") + 
+    theme_half_open(font_size = 7)
+children
+```
+
+What additional conclusions can you make after viewing this figure?
+
+> *There is a slight increase in the minimum insurance charges as the number of children increases, however, there is a definite decrease in the maximum charge as the number of children increases - ie, a person with one child has both the lowest and the highest payment. Also, there is a decrease in the number of people with insurance charges as the number of children increases - ie, more people with one child than two, two than three, etc.*
+
+
+## Prediction Model
+
+Based on the graphical inspection of our data, let's model charges as a function of the following variables:
+
+* age
+* smoker status
+* smokers with BMI over 30
+* sex
+* number of children
+* region
+
+We can view the major effects in this figure:
+
+```{r summary figure, echo=FALSE, dpi = 300, fig.cap="Figure 5: Square root scaled charges as a function of age (top), BMI (middle), sex (bottom left), region (bottom middle), and number of children (bottom right). Charges are colored black for non-smokers, gold for non-obese smokers and blue for obese smokers, and trend lines are included for each of these groups in the top two graphics."}
+g1 <- ggplot(insure, aes(age, charges, color = smoke_bmi_gt30)) +
+    geom_point(alpha = .2) +
+    geom_smooth(aes(group = smoke_bmi_gt30), method = lm) +
+    scale_y_sqrt() + 
+    theme_half_open(font_size = 7) +
+    scale_color_manual(name = "Smoker/BMI status", values = cbbPalette, labels = c("Non-Smoker", "Non-Obese Smoker", "Obese Smoker")) +
+    theme(legend.position = "none")
+
+g2 <- ggplot(insure, aes(bmi, charges, color = smoke_bmi_gt30)) +
+    geom_point(alpha = .2) +
+    geom_smooth(aes(group = smoke_bmi_gt30), method = lm) +
+    scale_y_sqrt() + 
+    theme_half_open(font_size = 7) +
+    scale_color_manual(name = "Smoker/BMI status", values = cbbPalette, labels = c("Non-Smoker", "Non-Obese Smoker", "Obese Smoker")) +
+    theme(legend.position = "none")
+
+g3 <- ggplot(insure, aes(sex, charges)) +
+    geom_violin() +
+    geom_jitter(aes(sex, charges, color = smoke_bmi_gt30),
+                width = .1, height = 0, alpha = .2) +
+    scale_y_sqrt() + 
+    scale_color_manual(name = "Smoker/BMI status", values = cbbPalette, labels = c("Non-Smoker", "Non-Obese Smoker", "Obese Smoker")) +
+    theme_half_open(font_size = 7)
+
+g4 <- ggplot(insure, aes(region, charges)) +
+    geom_violin() +
+    geom_jitter(aes(region, charges, color = smoke_bmi_gt30),
+                width = .1, height = 0, alpha = .2) +
+    scale_y_sqrt() + 
+    scale_color_manual(name = "Smoker/BMI status", values = cbbPalette, labels = c("Non-Smoker", "Non-Obese Smoker", "Obese Smoker")) +
+    theme_half_open(font_size = 7) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+
+g5 <- mutate(insure, children = factor(children)) %>%
+    ggplot(aes(children, charges)) +
+    geom_violin() +
+    geom_jitter(aes(children, charges, color = smoke_bmi_gt30),
+                width = .1, height = 0, alpha = .2) +
+    scale_y_sqrt() + 
+    scale_color_manual(name = "Smoker/BMI status", values = cbbPalette, labels = c("Non-Smoker", "Non-Obese Smoker", "Obese Smoker")) +
+    theme_half_open(font_size = 7)
+
+g1 / g2 / (g3 + g4 + g5) + plot_layout(guides = "collect")
+```
+ 
+
+At this point we could start to build a linear regression model or another prediction model. Since this is outside of the scope of this class, we'll end there.
